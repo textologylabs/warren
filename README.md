@@ -31,9 +31,20 @@ But the WAM is also famously opaque. The canonical reference — Hassan Aït-Kac
 
 This repository is seeded with intent and research scaffolding. Implementation has not started — the project is bookmarked while the author completes Bratko's *Prolog Programming for AI* and gathers prior-art research. See [docs/roadmap.md](docs/roadmap.md) for the planned build sequence.
 
+## Distribution
+
+Warren is designed to ship in multiple forms, sharing the same WAM core and UI:
+
+- **Desktop application** (Tauri) — the primary, cross-platform installer for serious work.
+- **VS Code extension** — same visualizer hosted in a webview panel; zero install friction for the millions of developers already using VS Code.
+- **Web build** (stretch goal) — try-without-installing version on the project landing page.
+
+The architecture is layered specifically to make this multi-target strategy practical: shell-agnostic UI, host-agnostic WAM core. See [architecture.md](docs/architecture.md).
+
 ## Documents
 
 - [vision.md](docs/vision.md) — the big goal and what "best WAM environment" means
+- [ux.md](docs/ux.md) — UI panes, animations, and the interaction model
 - [prior-art.md](docs/prior-art.md) — existing implementations, literature, what to learn from
 - [architecture.md](docs/architecture.md) — proposed technical architecture
 - [roadmap.md](docs/roadmap.md) — incremental build plan, Aït-Kaci-aligned

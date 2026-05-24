@@ -8,10 +8,79 @@
 - **Portable** — modest install size, no heavyweight runtime requirements.
 - **Modular** — the WAM core is decoupled from the UI; either could be replaced.
 - **Hackable** — contributors can swap in WAM variants without rewriting the UI.
+- **Multi-target** — same core ships as desktop app, VS Code extension, and (stretch) web build.
+
+## Why we build our own WAM
+
+A natural question: can't we just hook into SWI-Prolog (or another existing Prolog implementation) and observe its execution? After all, [prolog-trace-viz](https://github.com/jarecsni/prolog-trace-viz) does exactly that — uses SWI's `prolog_trace_interception/4` hook to observe execution and produce visualizations.
+
+The answer is **no**, for two reasons:
+
+1. **No WAM-level hooks exist.** SWI's trace hooks operate at the *goal level* — which goal succeeded, which clause was selected, which variable bound to what value. That's the right abstraction for prolog-trace-viz, which is a goal-level tool. But Warren operates *one layer deeper*: at the WAM instruction level, watching heap cells written, registers updated, trail entries pushed. No mainstream Prolog implementation exposes hooks at that level. SWI's WAM is C code with no instrumentation surface.
+
+2. **It wouldn't be the right WAM anyway.** Even if SWI did expose its instruction-level state, that state would reflect SWI's *production* WAM — heavily optimized, with dozens of internal instructions, indexing trees, custom term representations, JIT compilation. The Aït-Kaci WAM Warren teaches is a much cleaner pedagogical machine with ~30 instructions and transparent state. They're different machines. Showing a student SWI's internals would teach them about SWI, not about the WAM.
+
+So **Warren must include its own WAM implementation** — parser, compiler, and VM. This is a real implementation undertaking, not a thin wrapper. But the scope is bounded by Aït-Kaci's pedagogical subset, not by the demands of a production Prolog.
+
+**Relationship to prolog-trace-viz:**
+
+| | prolog-trace-viz | Warren |
+|---|---|---|
+| Layer observed | Goal level | Machine level |
+| Engine | SWI (via hooks) | Our own WAM |
+| Audience | Prolog learners curious about execution flow | WAM learners studying the machine |
+| Implementation cost | Modest (wrapper + viz) | Substantial (full mini-Prolog) |
+
+The two tools complement each other; they may eventually share UI infrastructure or example libraries, but they cannot share engines.
+
+## Distribution targets
+
+Warren is designed to ship in **three forms**, sharing the same WAM core and React UI:
+
+### Primary: Desktop application (Tauri)
+
+Standalone cross-platform installer for macOS, Windows, Linux. The headline distribution — for classroom use, teaching demos, and serious self-study. Owns the window, file dialogs, native menus.
+
+### Secondary: VS Code extension
+
+A VS Code extension hosting the same React UI in a webview panel. This is potentially the *higher-reach* distribution — millions of developers already have VS Code, and an extension means zero install friction. Targets:
+
+- Activates on `.pl` files.
+- "Warren: Run with WAM Visualizer" command.
+- Optional code lenses on Prolog source ("▶ Step through this query").
+- Possibly integrates with VS Code's debug protocol for breakpoints.
+
+### Tertiary (stretch): Web build
+
+The same UI in a browser, with the WAM core compiled to WebAssembly or running as pure JS. Useful for the project landing page ("try without installing"). Lower priority.
+
+### What this requires architecturally
+
+The multi-target strategy is the **strongest** argument for the layered architecture below. The WAM core must be:
+
+- **Pure TypeScript**, no DOM dependencies, no Node-specific APIs.
+- **Event-driven**, emitting a typed stream of state-change events the UI subscribes to.
+- **Serializable**, so its state can be sent across the VS Code webview boundary if needed.
+
+The React UI must be:
+
+- **Hostable** in three different shell contexts (Tauri's web view, VS Code's webview, a plain browser).
+- **Communicates with the WAM core via well-defined events**, never assuming a specific host environment.
+
+These constraints feel restrictive at first, but they're exactly what makes the multi-target strategy practical. Build the boundary cleanly once; reap it three ways.
 
 ## High-level shape
 
 ```
+┌─────────────────────────────────────────────────────┐
+│  Shells (one of three, swappable)                   │
+│  ───                                                │
+│  Tauri (desktop)  │  VS Code ext  │  Browser (web)  │
+│  ▔▔▔▔▔▔▔▔▔▔▔▔▔   │  ▔▔▔▔▔▔▔▔▔▔   │  ▔▔▔▔▔▔▔▔▔▔▔▔   │
+└─────────────────────────────────────────────────────┘
+                       ▲
+                       │  hosts
+                       ▼
 ┌─────────────────────────────────────────────────────┐
 │  UI Layer (TypeScript + React)                      │
 │  - Code editor (Monaco)                             │
@@ -29,15 +98,9 @@
 │  - VM: executes instructions, emits state events    │
 │  - State snapshots: enable rewind                   │
 └─────────────────────────────────────────────────────┘
-                       ▲
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│  Tauri shell (Rust)                                 │
-│  - Window management, file I/O, OS integration      │
-│  - Thin layer; almost no business logic             │
-└─────────────────────────────────────────────────────┘
 ```
+
+Three shells, one UI, one core. The shells are thin — almost no business logic. The UI is portable across all three. The WAM core is shell-agnostic and host-agnostic; it just executes and emits events.
 
 ## Technology decisions
 

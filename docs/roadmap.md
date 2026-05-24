@@ -107,9 +107,29 @@ Now Warren becomes pedagogically valuable for performance reasoning. Each optimi
 
 **Exit criteria:** a learner can install Warren, work through `examples/`, and emerge understanding the WAM.
 
-## Stage 7: 1.0 release
+## Stage 7: VS Code extension
+
+A parallel distribution channel. The same React UI hosted in a VS Code webview, with appropriate command-palette and code-lens integration.
+
+**Functionality:**
+- Extension manifest (`package.json` for VS Code).
+- Activation on `.pl` files.
+- "Warren: Run with WAM Visualizer" command.
+- Webview panel hosting the existing UI bundle.
+- Optional: code lenses on Prolog source ("▶ Step through this query").
+- Optional: integration with VS Code's debug protocol for breakpoints.
+
+**Why this lives here in the sequence:**
+- Requires the desktop UI to be solid first (the webview reuses it).
+- Requires the WAM core to be fully shell-agnostic (validated by the desktop build).
+- Once both exist, the VS Code extension is mostly packaging work.
+
+**Exit criteria:** Warren published to the VS Code Marketplace with a working install-and-step-through-append experience.
+
+## Stage 8: 1.0 release
 
 - Cross-platform installers (Mac dmg, Win exe, Linux deb/rpm/AppImage).
+- VS Code extension published to the Marketplace.
 - Project website with screenshots and tutorial.
 - Public announcement.
 
